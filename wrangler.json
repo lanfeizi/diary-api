@@ -1,0 +1,8 @@
+name = "diary-api"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "diary-db"
+database_id = "9bd30028-d725-4f05-ac26-1f719cfb18df "

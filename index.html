@@ -1,0 +1,3505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>多应用日记系统 - 云端同步版</title>
+    
+    <!-- PWA配置 -->
+    <meta name="theme-color" content="#3498db">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <style>
+        /* ==================== 基础样式 ==================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 10px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ==================== 应用选择界面 ==================== */
+        .app-selector {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .app-selector.hidden {
+            display: none;
+        }
+
+        .app-selector-header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .app-selector-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .app-selector-header p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 30px;
+        }
+
+        .app-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 140px;
+        }
+
+        .app-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .app-card.active {
+            background: rgba(52, 152, 219, 0.3);
+            border-color: #3498db;
+        }
+
+        .app-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .app-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .app-stats {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 5px;
+        }
+
+        /* ==================== 主程序界面 ==================== */
+        .main-content {
+            display: none;
+        }
+
+        .main-content.active {
+            display: block;
+        }
+
+        /* ==================== 手机优化界面 ==================== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        @media (min-width: 768px) {
+            .main-container {
+                flex-direction: row;
+                height: calc(100vh - 80px);
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* 左侧面板 - 手机时隐藏，电脑时显示 */
+        .left-panel {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .left-panel {
+                display: block;
+                width: 350px;
+                min-width: 350px;
+                overflow-y: auto;
+            }
+        }
+
+        /* ==================== 移动端修复 ==================== */
+        
+        /* 移动端底部工具栏 */
+        .mobile-toolbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #ddd;
+            padding: 10px;
+            display: flex;
+            justify-content: space-around;
+            z-index: 100;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        @media (min-width: 768px) {
+            .mobile-toolbar {
+                display: none;
+            }
+        }
+
+        .mobile-tab {
+            padding: 8px 12px;
+            border: none;
+            background: none;
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .mobile-tab.active {
+            color: #3498db;
+            font-weight: 600;
+        }
+
+        .mobile-tab-icon {
+            font-size: 18px;
+        }
+
+        /* 移动端全屏面板 - 修复版 */
+        .mobile-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 60px;
+            background: white;
+            z-index: 99;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            padding: 20px;
+            padding-bottom: 100px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-panel.active {
+            transform: translateX(0);
+        }
+
+        .mobile-panel-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+            z-index: 101;
+            padding: 10px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 移动端输入框修复 - 关键修复部分 */
+        .mobile-panel textarea,
+        .mobile-panel input,
+        .mobile-panel select {
+            font-size: 16px !important;
+            -webkit-appearance: none;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            padding: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            background: white;
+            touch-action: pan-y pinch-zoom;
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        .mobile-panel textarea {
+            min-height: 250px;
+            resize: vertical;
+            line-height: 1.6;
+            font-family: inherit;
+            white-space: pre-wrap; /* 保留空格和换行 */
+            word-wrap: break-word;
+        }
+
+        .mobile-panel input:focus,
+        .mobile-panel textarea:focus,
+        .mobile-panel select:focus {
+            outline: none;
+            border-color: #3498db;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 快速选择按钮修复 */
+        .mobile-panel .quick-select {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .mobile-panel .quick-option {
+            padding: 10px 16px;
+            font-size: 14px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+            touch-action: manipulation;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-panel .quick-option:active {
+            background: #e0e0e0;
+            transform: scale(0.98);
+        }
+
+        /* 分类按钮修复 */
+        .mobile-panel .category-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .mobile-panel .category-btn {
+            padding: 12px 8px;
+            font-size: 14px;
+            background: #f0f0f0;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+            touch-action: manipulation;
+            text-align: center;
+        }
+
+        .mobile-panel .category-btn:active {
+            background: #e0e0e0;
+        }
+
+        .mobile-panel .category-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        /* 按钮组修复 */
+        .mobile-panel .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+            margin-bottom: 40px;
+        }
+
+        .mobile-panel .btn-group button {
+            flex: 1;
+            padding: 14px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+            touch-action: manipulation;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        .mobile-panel .btn-group button:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .mobile-panel .btn-group .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .mobile-panel .btn-group .btn-secondary {
+            background: #ecf0f1;
+            color: #333;
+        }
+
+        /* 键盘弹出时的优化 */
+        @media screen and (max-height: 600px) {
+            .mobile-panel {
+                padding-bottom: 120px;
+            }
+            
+            .mobile-panel textarea {
+                min-height: 180px;
+            }
+        }
+
+        /* 其他样式保持不变 */
+        h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            font-size: 1.3rem;
+        }
+
+        h3 {
+            color: #555;
+            margin: 12px 0 8px 0;
+            font-size: 1.1rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+
+        /* 展示区域样式 */
+        .display-area {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+            margin-bottom: 15px;
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .view-controls select {
+            min-width: 120px;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 150px;
+            position: relative;
+        }
+
+        .search-box input {
+            padding: 10px 35px 10px 12px;
+            width: 100%;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #777;
+        }
+
+        .entry-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .entry-date {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .entry-category {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #3498db;
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .entry-content {
+            color: #444;
+            line-height: 1.6;
+            white-space: pre-wrap; /* 保留空格和换行 */
+            word-wrap: break-word;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .entry-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: white;
+            font-weight: 500;
+        }
+
+        .tag-重要 { background: #e74c3c; }
+        .tag-紧急 { background: #e67e22; }
+        .tag-已完成 { background: #2ecc71; }
+        .tag-进行中 { background: #3498db; }
+        .tag-灵感 { background: #9b59b6; }
+        .tag-问题 { background: #34495e; }
+        .tag-解决方案 { background: #1abc9c; }
+        .tag-复盘 { background: #f39c12; }
+        .tag-成长 { background: #27ae60; }
+        .tag-突破 { background: #8e44ad; }
+        .tag-感谢 { background: #d35400; }
+        .tag-计划 { background: #2980b9; }
+        .tag-default { background: #95a5a6; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d6dbdf;
+        }
+
+        .btn-success {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #27ae60;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d68910;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .app-switcher {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            background: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .create-app-modal {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .icon-option {
+            font-size: 24px;
+            padding: 15px;
+            text-align: center;
+            background: #f8f9fa;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .icon-option:hover {
+            background: #e9ecef;
+            transform: scale(1.1);
+        }
+
+        .icon-option.selected {
+            background: #3498db;
+            color: white;
+        }
+
+        .app-manager-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            z-index: 999;
+            padding: 20px;
+            overflow-y: auto;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .app-manager-panel.active {
+            transform: translateX(0);
+        }
+
+        .app-manager-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .app-manager-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+        }
+
+        .app-manager-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .app-manager-icon {
+            font-size: 24px;
+        }
+
+        .app-manager-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .app-manager-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .page-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: #f0f0f0;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .performance-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .performance-warning.hidden {
+            display: none;
+        }
+
+        .qr-container {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        #qrCanvas {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+        }
+
+        @media (max-width: 767px) {
+            .app-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+            
+            .app-card {
+                padding: 15px;
+                min-height: 120px;
+            }
+            
+            .app-icon {
+                font-size: 28px;
+            }
+            
+            .app-name {
+                font-size: 13px;
+            }
+            
+            .icon-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .mobile-toolbar {
+                padding-bottom: calc(10px + env(safe-area-inset-bottom));
+            }
+            
+            .view-controls {
+                flex-direction: column;
+            }
+            
+            .view-controls select {
+                width: 100%;
+            }
+        }
+
+        @media print {
+            .no-print, .mobile-toolbar, .app-switcher, .modal, button {
+                display: none !important;
+            }
+            
+            .main-content.active {
+                display: block !important;
+            }
+            
+            body {
+                background: white !important;
+                padding: 0 !important;
+                font-size: 12pt !important;
+            }
+            
+            .card {
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+            }
+            
+            .entry-item {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                border: 1px solid #ddd !important;
+            }
+        }
+
+        @keyframes slideIn {
+            from { transform: translate(-50%, -20px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+        
+        @keyframes slideOut {
+            from { transform: translate(-50%, 0); opacity: 1; }
+            to { transform: translate(-50%, -20px); opacity: 0; }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2ecc71;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            max-width: 90%;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- ==================== 应用选择界面 ==================== -->
+    <div id="appSelector" class="app-selector">
+        <div class="app-selector-header">
+            <h1>📚 我的记录应用</h1>
+            <p>选择或创建一个应用开始记录</p>
+        </div>
+        
+        <div class="app-grid" id="appGrid">
+            <!-- 应用卡片将动态生成 -->
+        </div>
+        
+        <button class="btn-primary" onclick="showCreateAppModal()" style="max-width: 200px;">
+            <span style="font-size: 18px;">➕</span> 创建新应用
+        </button>
+    </div>
+
+    <!-- ==================== 创建应用模态框 ==================== -->
+    <div id="createAppModal" class="modal">
+        <div class="modal-content create-app-modal">
+            <h2>创建新应用</h2>
+            
+            <div class="form-group">
+                <label>应用名称</label>
+                <input type="text" id="newAppName" placeholder="例如：英语学习记录" maxlength="20">
+            </div>
+            
+            <div class="form-group">
+                <label>应用描述（可选）</label>
+                <input type="text" id="newAppDesc" placeholder="简要描述这个应用的用途">
+            </div>
+            
+            <div class="form-group">
+                <label>选择图标</label>
+                <div class="icon-grid" id="iconGrid">
+                    <!-- 图标将动态生成 -->
+                </div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeCreateAppModal()">取消</button>
+                <button class="btn-primary" onclick="createNewApp()">创建应用</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 应用管理面板 ==================== -->
+    <div id="appManagerPanel" class="app-manager-panel">
+        <div class="app-manager-header">
+            <h2>应用管理</h2>
+            <button class="btn-secondary" onclick="hideAppManager()">完成</button>
+        </div>
+        
+        <div id="appManagerList">
+            <!-- 应用管理列表将动态生成 -->
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <button class="btn-primary" onclick="showCreateAppModal()" style="width: 100%;">
+                <span style="font-size: 18px;">➕</span> 创建新应用
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== 主程序界面 ==================== -->
+    <div id="mainContent" class="main-content">
+        <!-- 应用切换按钮 -->
+        <button class="app-switcher" onclick="showAppManager()">
+            <span id="currentAppIcon">📝</span>
+            <span id="currentAppName" style="max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+            <span>🔄</span>
+        </button>
+
+        <div class="header">
+            <h1><span id="appIcon">📝</span> <span id="appTitleText">每日思考记录</span></h1>
+            <div class="tool-buttons no-print">
+                <button class="btn-secondary" onclick="openStorageModal()">💾 存储</button>
+                <button class="btn-primary" onclick="openSyncModal()">📡 同步</button>
+                <button class="btn-warning" onclick="openExportModal()">📤 导出</button>
+                <button class="btn-warning" onclick="window.print()">🖨️ 打印</button>
+            </div>
+        </div>
+
+        <div id="performanceWarning" class="performance-warning hidden">
+            <span>⚠️ 检测到大容量数据，建议开启压缩</span>
+            <button onclick="openStorageModal()" style="padding: 4px 8px; font-size: 11px;">优化存储</button>
+        </div>
+
+        <div class="main-container">
+            <!-- 左侧面板（电脑端显示） -->
+            <div class="left-panel card">
+                <h2><span id="addRecordIcon">📝</span> 新增记录</h2>
+                
+                <div class="form-group">
+                    <label>类型</label>
+                    <div class="category-container" id="categoryContainer">
+                        <!-- 分类将动态生成 -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>内容</label>
+                    <div class="quick-select" id="quickPhrases"></div>
+                    <textarea id="content" placeholder="写下你的思考或活动内容..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>标签</label>
+                    <div class="quick-select" id="quickTags"></div>
+                    <input type="text" id="tags" placeholder="添加标签，用逗号分隔">
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="saveEntry()">💾 保存记录</button>
+                    <button class="btn-secondary" onclick="clearForm()">🗑️ 清空</button>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h3>📊 统计</h3>
+                    <div class="stats" id="stats"></div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h3>⚙️ 管理</h3>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button class="btn-warning" onclick="managePhrases()">管理常用短语</button>
+                        <button class="btn-danger" onclick="clearAllData()">清空当前应用</button>
+                        <button class="btn-secondary" onclick="showAppManager()">切换应用</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧面板 -->
+            <div class="right-panel card">
+                <h2>📋 所有记录 <span id="recordCount" style="font-size: 14px; color: #666;"></span></h2>
+                
+                <div class="view-controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="搜索内容或标签..." 
+                               oninput="debouncedFilter()">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                    
+                    <select id="filterCategory" onchange="debouncedFilter()">
+                        <option value="all">全部分类</option>
+                        <!-- 分类选项将动态生成 -->
+                    </select>
+                    
+                    <select id="dateRange" onchange="debouncedFilter()">
+                        <option value="all">全部时间</option>
+                        <option value="today">今天</option>
+                        <option value="week">本周</option>
+                        <option value="month">本月</option>
+                        <option value="year">今年</option>
+                    </select>
+                    
+                    <select id="pageSize" onchange="changePageSize()" style="width: 80px;">
+                        <option value="20">20条/页</option>
+                        <option value="50">50条/页</option>
+                        <option value="100">100条/页</option>
+                        <option value="200">200条/页</option>
+                    </select>
+                </div>
+
+                <div class="display-area" id="displayArea">
+                    <!-- 记录将动态显示 -->
+                </div>
+
+                <div class="pagination" id="pagination" style="display: none;">
+                    <button class="page-btn" onclick="changePage(-1)" id="prevPage">上一页</button>
+                    <span class="page-info" id="pageInfo">第1页/共1页</span>
+                    <button class="page-btn" onclick="changePage(1)" id="nextPage">下一页</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 移动端面板 ==================== -->
+        <div id="mobileAddPanel" class="mobile-panel">
+            <button class="mobile-panel-close" onclick="closeMobilePanel('add')">✕</button>
+            <h2><span id="mobileAppIcon">📝</span> 新增记录</h2>
+            
+            <div class="form-group">
+                <label>类型</label>
+                <div class="category-container" id="mobileCategoryContainer">
+                    <!-- 移动端分类 -->
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>内容</label>
+                <div class="quick-select" id="mobileQuickPhrases"></div>
+                <textarea id="mobileContent" placeholder="写下你的思考或活动内容..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>标签</label>
+                <div class="quick-select" id="mobileQuickTags"></div>
+                <input type="text" id="mobileTags" placeholder="添加标签，用逗号分隔">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-primary" onclick="saveMobileEntry()">💾 保存记录</button>
+                <button class="btn-secondary" onclick="clearMobileForm()">🗑️ 清空</button>
+            </div>
+        </div>
+
+        <div id="mobileStatsPanel" class="mobile-panel">
+            <button class="mobile-panel-close" onclick="closeMobilePanel('stats')">✕</button>
+            <h2>📊 统计与管理</h2>
+            <div class="stats" id="mobileStats"></div>
+            
+            <h3 style="margin-top: 20px;">⚙️ 应用管理</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="btn-warning" onclick="managePhrases()">管理常用短语</button>
+                <button class="btn-danger" onclick="clearAllData()">清空当前应用</button>
+                <button class="btn-secondary" onclick="showAppManager()">切换应用</button>
+                <button class="btn-secondary" onclick="backupData()">备份数据</button>
+            </div>
+        </div>
+
+        <div class="mobile-toolbar">
+            <button class="mobile-tab active" onclick="showMobilePanel('none')">
+                <span class="mobile-tab-icon">📋</span>
+                <span>记录</span>
+            </button>
+            <button class="mobile-tab" onclick="showMobilePanel('add')">
+                <span class="mobile-tab-icon">➕</span>
+                <span>新增</span>
+            </button>
+            <button class="mobile-tab" onclick="showMobilePanel('stats')">
+                <span class="mobile-tab-icon">📊</span>
+                <span>统计</span>
+            </button>
+            <button class="mobile-tab" onclick="openSyncModal()">
+                <span class="mobile-tab-icon">📡</span>
+                <span>同步</span>
+            </button>
+            <button class="mobile-tab" onclick="openExportModal()">
+                <span class="mobile-tab-icon">📤</span>
+                <span>导出</span>
+            </button>
+        </div>
+
+        <!-- ==================== 模态框系统 ==================== -->
+        
+        <!-- 存储管理模态框 -->
+        <div id="storageModal" class="modal">
+            <div class="modal-content">
+                <h2>💾 存储管理</h2>
+                <div class="form-group">
+                    <div id="storageStats" style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-size: 14px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>数据压缩</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="compressContent" checked> 开启内容压缩
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="optimizeDates"> 优化日期格式
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn-secondary" onclick="closeModal('storageModal')">取消</button>
+                    <button class="btn-success" onclick="optimizeStorage()">优化存储</button>
+                    <button class="btn-danger" onclick="clearOldData()">清理旧数据</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 同步模态框 - 云端版 -->
+        <div id="syncModal" class="modal">
+            <div class="modal-content">
+                <h2>📡 数据同步</h2>
+                <div class="qr-container">
+                    <canvas id="qrCanvas"></canvas>
+                    <p style="margin-top: 10px; font-size: 13px; color: #666;">扫描二维码获取当前数据</p>
+                </div>
+                <div class="form-group">
+                    <label>导入数据 (JSON格式)</label>
+                    <textarea id="importData" placeholder="粘贴要导入的JSON数据..." rows="4"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn-secondary" onclick="closeModal('syncModal')">取消</button>
+                    <button class="btn-success" onclick="importData()">导入本地JSON</button>
+                    <button class="btn-primary" onclick="exportJSON()">导出本地JSON</button>
+                </div>
+                <hr>
+                <h3>☁️ 云端同步</h3>
+                <div style="margin-top: 10px;">
+                    <div class="form-group">
+                        <label>Cloudflare Worker地址</label>
+                        <input type="text" id="cloudflareApiUrl" placeholder="diary-api.lanfeizi.workers.dev" value="https://diary-api.lanfeizi.workers.dev">
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                        <button class="btn-primary" onclick="pushToCloud()" style="flex:1">上传到云端</button>
+                        <button class="btn-primary" onclick="pullFromCloud()" style="flex:1">从云端下载</button>
+                        <button class="btn-warning" onclick="syncWithCloud()" style="flex:1">双向同步</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 导出模态框 -->
+        <div id="exportModal" class="modal">
+            <div class="modal-content">
+                <h2>📤 导出记录</h2>
+                <div class="form-group">
+                    <label>导出范围</label>
+                    <select id="exportRange">
+                        <option value="all">全部记录</option>
+                        <option value="today">今日记录</option>
+                        <option value="week">本周记录</option>
+                        <option value="month">本月记录</option>
+                        <option value="search">当前搜索结果</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>导出格式</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;">
+                        <button class="btn-primary" onclick="exportToPDF()" style="flex-direction: column; height: 80px;">
+                            <span style="font-size: 20px;">📄</span>
+                            <span>PDF文档</span>
+                        </button>
+                        <button class="btn-primary" onclick="exportToWord()" style="flex-direction: column; height: 80px;">
+                            <span style="font-size: 20px;">📝</span>
+                            <span>Word文档</span>
+                        </button>
+                        <button class="btn-secondary" onclick="exportToText()" style="flex-direction: column; height: 80px;">
+                            <span style="font-size: 20px;">📋</span>
+                            <span>纯文本</span>
+                        </button>
+                        <button class="btn-secondary" onclick="exportJSON()" style="flex-direction: column; height: 80px;">
+                            <span style="font-size: 20px;">🔄</span>
+                            <span>JSON数据</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn-secondary" onclick="closeModal('exportModal')">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 常用短语管理模态框 -->
+        <div id="phraseModal" class="modal">
+            <div class="modal-content">
+                <h2>📝 管理常用短语</h2>
+                <div id="phraseList" style="margin-bottom: 20px; max-height: 200px; overflow-y: auto;"></div>
+                <div class="form-group">
+                    <input type="text" id="newPhrase" placeholder="输入新短语" style="margin-bottom: 10px;">
+                    <button onclick="addCustomPhrase()" class="btn-primary">添加短语</button>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn-secondary" onclick="closeModal('phraseModal')">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 云端同步配置 ====================
+        // 请替换为您的Cloudflare Worker实际地址
+        const DEFAULT_CLOUDFLARE_API_URL = 'diary-api.lanfeizi.workers.dev';
+        
+        // ==================== 多应用管理系统 ====================
+        
+        // 应用配置
+        const AppSystem = {
+            currentAppId: null,
+            currentAppConfig: null,
+            installedApps: {},
+            
+            // 默认应用
+            defaultApps: {
+                'daily': {
+                    id: 'daily',
+                    name: '每日思考记录',
+                    desc: '记录日常思考与活动',
+                    icon: '📝',
+                    categories: ['思考', '工作', '学习', '生活', '健康'],
+                    defaultTags: ['重要', '紧急', '已完成', '进行中', '灵感', '问题', '解决方案'],
+                    storageKey: 'app_daily_data',
+                    created: new Date().toISOString()
+                },
+                'life': {
+                    id: 'life',
+                    name: '生活记录',
+                    desc: '记录家庭生活与日常',
+                    icon: '🏠',
+                    categories: ['家庭', '购物', '健康', '娱乐', '社交'],
+                    defaultTags: ['重要', '购物清单', '家庭活动', '健康管理', '娱乐休闲'],
+                    storageKey: 'app_life_data',
+                    created: new Date().toISOString()
+                },
+                'english': {
+                    id: 'english',
+                    name: '英语学习',
+                    desc: '记录英语学习进度与心得',
+                    icon: '🔤',
+                    categories: ['单词', '语法', '阅读', '听力', '口语', '写作'],
+                    defaultTags: ['新单词', '语法难点', '阅读心得', '听力练习', '口语突破'],
+                    storageKey: 'app_english_data',
+                    created: new Date().toISOString()
+                }
+            },
+            
+            // 可用图标
+            availableIcons: [
+                '📝', '📚', '💼', '🏠', '🏃', '❤️', '💰', '🎯',
+                '🔤', '📖', '🎵', '🎨', '✈️', '🍳', '🛒', '💡',
+                '🎓', '💻', '📊', '🎮', '🏋️', '🍎', '📷', '🌱'
+            ]
+        };
+
+        // 当前应用的数据
+        const CurrentAppData = {
+            entries: [],
+            customPhrases: [],
+            quickTags: [],
+            categories: [],
+            currentPage: 1,
+            pageSize: 20,
+            totalPages: 1,
+            compressContent: true,
+            debounceTimer: null
+        };
+
+        // 标签颜色映射
+        const tagColors = {
+            '重要': '#e74c3c',
+            '紧急': '#e67e22',
+            '已完成': '#2ecc71',
+            '进行中': '#3498db',
+            '灵感': '#9b59b6',
+            '问题': '#34495e',
+            '解决方案': '#1abc9c',
+            '复盘': '#f39c12',
+            '成长': '#27ae60',
+            '突破': '#8e44ad',
+            '感谢': '#d35400',
+            '计划': '#2980b9'
+        };
+
+        // ==================== 应用管理功能 ====================
+
+        // 初始化应用系统
+        function initAppSystem() {
+            // 加载已安装的应用
+            loadInstalledApps();
+            
+            // 检查URL参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const appId = urlParams.get('app');
+            
+            // 检查上次使用的应用
+            const lastUsedApp = localStorage.getItem('last_used_app');
+            
+            if (appId && AppSystem.installedApps[appId]) {
+                // 直接打开URL指定的应用
+                selectApp(appId);
+            } else if (lastUsedApp && AppSystem.installedApps[lastUsedApp]) {
+                // 打开上次使用的应用
+                selectApp(lastUsedApp);
+            } else {
+                // 显示应用选择界面
+                showAppSelector();
+            }
+        }
+
+        // 加载已安装的应用
+        function loadInstalledApps() {
+            try {
+                const installedAppsJson = localStorage.getItem('installed_apps');
+                if (installedAppsJson) {
+                    AppSystem.installedApps = JSON.parse(installedAppsJson);
+                } else {
+                    // 初始化默认应用
+                    AppSystem.installedApps = JSON.parse(JSON.stringify(AppSystem.defaultApps));
+                    saveInstalledApps();
+                }
+            } catch (error) {
+                console.error('加载应用列表失败:', error);
+                AppSystem.installedApps = JSON.parse(JSON.stringify(AppSystem.defaultApps));
+            }
+            
+            // 更新应用列表显示
+            updateAppGrid();
+        }
+
+        // 保存应用列表
+        function saveInstalledApps() {
+            localStorage.setItem('installed_apps', JSON.stringify(AppSystem.installedApps));
+        }
+
+        // 选择应用
+        function selectApp(appId) {
+            if (!AppSystem.installedApps[appId]) {
+                console.error('应用不存在:', appId);
+                showAppSelector();
+                return;
+            }
+            
+            // 设置当前应用
+            AppSystem.currentAppId = appId;
+            AppSystem.currentAppConfig = AppSystem.installedApps[appId];
+            
+            // 隐藏选择界面，显示主程序
+            document.getElementById('appSelector').classList.add('hidden');
+            document.getElementById('mainContent').classList.add('active');
+            
+            // 更新界面显示
+            updateAppDisplay();
+            
+            // 加载应用数据
+            loadAppData();
+            
+            // 初始化当前应用
+            initCurrentApp();
+            
+            // 保存最后使用的应用
+            localStorage.setItem('last_used_app', appId);
+            
+            // 更新URL（可选）
+            updateUrlWithAppId(appId);
+        }
+
+        // 更新应用显示
+        function updateAppDisplay() {
+            const config = AppSystem.currentAppConfig;
+            
+            // 更新标题和图标
+            const appTitleText = document.getElementById('appTitleText');
+            const appIcon = document.getElementById('appIcon');
+            const addRecordIcon = document.getElementById('addRecordIcon');
+            const mobileAppIcon = document.getElementById('mobileAppIcon');
+            const currentAppName = document.getElementById('currentAppName');
+            const currentAppIcon = document.getElementById('currentAppIcon');
+            
+            if (appTitleText) appTitleText.textContent = config.name;
+            if (appIcon) appIcon.textContent = config.icon;
+            if (addRecordIcon) addRecordIcon.textContent = config.icon;
+            if (mobileAppIcon) mobileAppIcon.textContent = config.icon;
+            if (currentAppName) currentAppName.textContent = config.name;
+            if (currentAppIcon) currentAppIcon.textContent = config.icon;
+            
+            // 更新页面标题
+            document.title = `${config.icon} ${config.name}`;
+            
+            // 更新应用卡片激活状态
+            updateAppGrid();
+        }
+
+        // 显示应用选择器
+        function showAppSelector() {
+            AppSystem.currentAppId = null;
+            AppSystem.currentAppConfig = null;
+            
+            document.getElementById('appSelector').classList.remove('hidden');
+            document.getElementById('mainContent').classList.remove('active');
+        }
+
+        // 更新应用网格显示
+        function updateAppGrid() {
+            const appGrid = document.getElementById('appGrid');
+            if (!appGrid) return;
+            
+            appGrid.innerHTML = '';
+            
+            Object.values(AppSystem.installedApps).forEach(app => {
+                const isCurrent = app.id === AppSystem.currentAppId;
+                
+                // 获取应用统计数据
+                const stats = getAppStats(app.id);
+                
+                const appCard = document.createElement('div');
+                appCard.className = `app-card ${isCurrent ? 'active' : ''}`;
+                appCard.onclick = () => selectApp(app.id);
+                appCard.innerHTML = `
+                    <span class="app-icon">${app.icon}</span>
+                    <div class="app-name">${app.name}</div>
+                    ${app.desc ? `<div style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 2px;">${app.desc}</div>` : ''}
+                    ${stats.count > 0 ? `<div class="app-stats">${stats.count}条记录</div>` : ''}
+                `;
+                
+                appGrid.appendChild(appCard);
+            });
+        }
+
+        // 获取应用统计数据
+        function getAppStats(appId) {
+            try {
+                const app = AppSystem.installedApps[appId];
+                if (!app) return { count: 0 };
+                
+                // 尝试加载数据统计
+                const storageKey = app.storageKey;
+                const compressedKey = `${storageKey}_compressed`;
+                let entries = [];
+                
+                if (localStorage.getItem(compressedKey)) {
+                    // 有压缩数据
+                    entries = decompressData(localStorage.getItem(compressedKey));
+                } else if (localStorage.getItem(storageKey)) {
+                    // 有普通数据
+                    entries = JSON.parse(localStorage.getItem(storageKey));
+                }
+                
+                return {
+                    count: entries.length,
+                    lastUpdate: entries.length > 0 ? new Date(entries[0].timestamp) : null
+                };
+            } catch (error) {
+                return { count: 0 };
+            }
+        }
+
+        // 显示创建应用模态框
+        function showCreateAppModal() {
+            // 填充图标网格
+            const iconGrid = document.getElementById('iconGrid');
+            iconGrid.innerHTML = '';
+            
+            AppSystem.availableIcons.forEach(icon => {
+                const iconOption = document.createElement('div');
+                iconOption.className = 'icon-option';
+                iconOption.textContent = icon;
+                iconOption.onclick = () => selectCreateIcon(icon);
+                iconGrid.appendChild(iconOption);
+            });
+            
+            // 重置表单
+            const newAppName = document.getElementById('newAppName');
+            const newAppDesc = document.getElementById('newAppDesc');
+            if (newAppName) newAppName.value = '';
+            if (newAppDesc) newAppDesc.value = '';
+            window.selectedCreateIcon = '📝';
+            
+            // 显示模态框
+            document.getElementById('createAppModal').style.display = 'flex';
+        }
+
+        // 关闭创建应用模态框
+        function closeCreateAppModal() {
+            document.getElementById('createAppModal').style.display = 'none';
+        }
+
+        // 选择创建图标
+        function selectCreateIcon(icon) {
+            window.selectedCreateIcon = icon;
+            document.querySelectorAll('.icon-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+        }
+
+        // 创建新应用
+        function createNewApp() {
+            const name = document.getElementById('newAppName').value.trim();
+            const desc = document.getElementById('newAppDesc').value.trim();
+            const icon = window.selectedCreateIcon || '📝';
+            
+            if (!name) {
+                alert('请输入应用名称');
+                return;
+            }
+            
+            // 生成应用ID
+            const appId = generateAppId(name);
+            
+            // 检查是否已存在
+            if (AppSystem.installedApps[appId]) {
+                alert('应用名称已存在，请使用其他名称');
+                return;
+            }
+            
+            // 创建新应用配置
+            const newApp = {
+                id: appId,
+                name: name,
+                desc: desc,
+                icon: icon,
+                categories: ['默认分类'],
+                defaultTags: ['重要', '笔记', '心得'],
+                storageKey: `app_${appId}_data`,
+                created: new Date().toISOString()
+            };
+            
+            // 添加到应用列表
+            AppSystem.installedApps[appId] = newApp;
+            saveInstalledApps();
+            
+            // 关闭模态框
+            closeCreateAppModal();
+            
+            // 选中新创建的应用
+            selectApp(appId);
+        }
+
+        // 生成应用ID
+        function generateAppId(appName) {
+            return appName.toLowerCase()
+                .replace(/[^\w\s\u4e00-\u9fa5]/gi, '')
+                .replace(/\s+/g, '_')
+                .replace(/[^a-z0-9_\u4e00-\u9fa5]/g, '');
+        }
+
+        // 显示应用管理面板
+        function showAppManager() {
+            updateAppManagerList();
+            document.getElementById('appManagerPanel').classList.add('active');
+        }
+
+        // 隐藏应用管理面板
+        function hideAppManager() {
+            document.getElementById('appManagerPanel').classList.remove('active');
+        }
+
+        // 更新应用管理列表
+        function updateAppManagerList() {
+            const managerList = document.getElementById('appManagerList');
+            if (!managerList) return;
+            
+            managerList.innerHTML = '';
+            
+            Object.values(AppSystem.installedApps).forEach(app => {
+                const isCurrent = app.id === AppSystem.currentAppId;
+                const stats = getAppStats(app.id);
+                
+                const appItem = document.createElement('div');
+                appItem.className = 'app-manager-item';
+                appItem.innerHTML = `
+                    <div class="app-manager-info">
+                        <span class="app-manager-icon">${app.icon}</span>
+                        <div>
+                            <div style="font-weight: 600;">${app.name}</div>
+                            <div class="app-manager-meta">
+                                ${app.desc ? app.desc + ' • ' : ''}
+                                ${stats.count}条记录
+                                ${isCurrent ? '• 当前使用' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="app-manager-actions">
+                        ${!isCurrent ? `
+                            <button class="btn-secondary" onclick="switchToApp('${app.id}')" style="padding: 6px 10px; font-size: 12px;">切换</button>
+                            <button class="btn-danger" onclick="deleteApp('${app.id}')" style="padding: 6px 10px; font-size: 12px;">删除</button>
+                        ` : `
+                            <span style="font-size: 12px; color: #3498db; padding: 6px 10px;">当前使用</span>
+                        `}
+                    </div>
+                `;
+                
+                managerList.appendChild(appItem);
+            });
+        }
+
+        // 切换到应用
+        function switchToApp(appId) {
+            selectApp(appId);
+            hideAppManager();
+        }
+
+        // 删除应用
+        function deleteApp(appId) {
+            if (!confirm('确定要删除这个应用吗？所有数据将被永久删除！')) {
+                return;
+            }
+            
+            // 如果删除的是当前应用，先切换到其他应用
+            if (appId === AppSystem.currentAppId) {
+                const otherApp = Object.values(AppSystem.installedApps).find(app => app.id !== appId);
+                if (otherApp) {
+                    selectApp(otherApp.id);
+                } else {
+                    showAppSelector();
+                }
+            }
+            
+            // 删除应用数据
+            const app = AppSystem.installedApps[appId];
+            if (app) {
+                localStorage.removeItem(app.storageKey);
+                localStorage.removeItem(`${app.storageKey}_compressed`);
+                localStorage.removeItem(`${app.storageKey}_config`);
+                localStorage.removeItem(`${app.storageKey}_compress`);
+            }
+            
+            // 从列表中删除
+            delete AppSystem.installedApps[appId];
+            saveInstalledApps();
+            
+            // 更新显示
+            updateAppManagerList();
+            updateAppGrid();
+        }
+
+        // 更新URL（可选）
+        function updateUrlWithAppId(appId) {
+            if (history.pushState) {
+                const newUrl = window.location.pathname + '?app=' + appId;
+                history.pushState(null, '', newUrl);
+            }
+        }
+
+        // ==================== 当前应用的数据管理 ====================
+
+        // 加载应用数据
+        function loadAppData() {
+            const storageKey = AppSystem.currentAppConfig.storageKey;
+            
+            try {
+                // 尝试加载压缩数据
+                const compressedKey = `${storageKey}_compressed`;
+                const compressedData = localStorage.getItem(compressedKey);
+                
+                if (compressedData) {
+                    CurrentAppData.entries = decompressData(compressedData);
+                } else {
+                    // 尝试普通数据
+                    const dataJson = localStorage.getItem(storageKey);
+                    CurrentAppData.entries = dataJson ? JSON.parse(dataJson) : [];
+                }
+                
+                // 加载应用配置
+                const configKey = `${storageKey}_config`;
+                const configJson = localStorage.getItem(configKey);
+                if (configJson) {
+                    const config = JSON.parse(configJson);
+                    CurrentAppData.customPhrases = config.customPhrases || [];
+                    CurrentAppData.quickTags = config.quickTags || AppSystem.currentAppConfig.defaultTags;
+                    CurrentAppData.categories = config.categories || AppSystem.currentAppConfig.categories;
+                    CurrentAppData.compressContent = config.compressContent !== false;
+                } else {
+                    // 使用默认配置
+                    CurrentAppData.customPhrases = [];
+                    CurrentAppData.quickTags = AppSystem.currentAppConfig.defaultTags;
+                    CurrentAppData.categories = AppSystem.currentAppConfig.categories;
+                    CurrentAppData.compressContent = true;
+                }
+                
+            } catch (error) {
+                console.error('加载应用数据失败:', error);
+                CurrentAppData.entries = [];
+                CurrentAppData.customPhrases = [];
+                CurrentAppData.quickTags = AppSystem.currentAppConfig.defaultTags;
+                CurrentAppData.categories = AppSystem.currentAppConfig.categories;
+                CurrentAppData.compressContent = true;
+            }
+        }
+
+        // 保存应用数据
+        function saveAppData() {
+            if (!AppSystem.currentAppId) return false;
+            
+            const storageKey = AppSystem.currentAppConfig.storageKey;
+            
+            try {
+                // 保存数据
+                if (CurrentAppData.compressContent) {
+                    const compressed = compressData(CurrentAppData.entries);
+                    localStorage.setItem(`${storageKey}_compressed`, compressed);
+                    localStorage.removeItem(storageKey);
+                } else {
+                    localStorage.setItem(storageKey, JSON.stringify(CurrentAppData.entries));
+                }
+                
+                // 保存配置
+                const config = {
+                    customPhrases: CurrentAppData.customPhrases,
+                    quickTags: CurrentAppData.quickTags,
+                    categories: CurrentAppData.categories,
+                    compressContent: CurrentAppData.compressContent,
+                    updated: new Date().toISOString()
+                };
+                localStorage.setItem(`${storageKey}_config`, JSON.stringify(config));
+                
+                return true;
+            } catch (error) {
+                console.error('保存应用数据失败:', error);
+                return false;
+            }
+        }
+
+        // ==================== 当前应用的核心功能 ====================
+
+        // 初始化当前应用
+        function initCurrentApp() {
+            // 更新分类显示
+            updateCategoryDisplay();
+            
+            // 更新常用短语和标签
+            renderQuickSelect();
+            renderMobileQuickSelect();
+            
+            // 渲染统计和记录
+            renderStats();
+            renderAllEntries();
+            
+            // 设置事件监听
+            setupEventListeners();
+            
+            // 设置移动端输入处理器
+            setupMobileInputHandlers();
+            
+            // 检查存储状态
+            checkStorageStatus();
+            
+            // 初始化默认常用短语
+            if (CurrentAppData.customPhrases.length === 0) {
+                CurrentAppData.customPhrases = [
+                    "今日完成主要工作",
+                    "遇到问题及解决方案",
+                    "明日计划安排",
+                    "重要会议记录",
+                    "学习收获",
+                    "创意灵感",
+                    "值得感恩"
+                ];
+                saveAppData();
+            }
+            
+            updateRecordCount();
+        }
+
+        // 更新分类显示
+        function updateCategoryDisplay() {
+            const categories = CurrentAppData.categories;
+            
+            // 更新电脑端分类
+            const categoryContainer = document.getElementById('categoryContainer');
+            if (categoryContainer) {
+                categoryContainer.innerHTML = '';
+                
+                categories.forEach((category, index) => {
+                    const btn = document.createElement('button');
+                    btn.className = `category-btn ${index === 0 ? 'active' : ''}`;
+                    btn.dataset.category = category;
+                    btn.textContent = category;
+                    btn.onclick = function() {
+                        document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                    };
+                    categoryContainer.appendChild(btn);
+                });
+            }
+            
+            // 更新移动端分类
+            const mobileCategoryContainer = document.getElementById('mobileCategoryContainer');
+            if (mobileCategoryContainer) {
+                mobileCategoryContainer.innerHTML = '';
+                
+                categories.forEach((category, index) => {
+                    const btn = document.createElement('button');
+                    btn.className = `category-btn ${index === 0 ? 'active' : ''}`;
+                    btn.dataset.category = category;
+                    btn.textContent = category;
+                    btn.onclick = function() {
+                        document.querySelectorAll('#mobileCategoryContainer .category-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                    };
+                    mobileCategoryContainer.appendChild(btn);
+                });
+            }
+            
+            // 更新筛选下拉框
+            const filterCategory = document.getElementById('filterCategory');
+            if (filterCategory) {
+                filterCategory.innerHTML = '<option value="all">全部分类</option>';
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    filterCategory.appendChild(option);
+                });
+            }
+        }
+
+        // 渲染快速选择（电脑端）
+        function renderQuickSelect() {
+            const quickPhrasesDiv = document.getElementById('quickPhrases');
+            const quickTagsDiv = document.getElementById('quickTags');
+
+            if (quickPhrasesDiv) quickPhrasesDiv.innerHTML = '';
+            if (quickTagsDiv) quickTagsDiv.innerHTML = '';
+
+            // 显示常用短语
+            if (quickPhrasesDiv) {
+                CurrentAppData.customPhrases.slice(0, 8).forEach(phrase => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quick-option';
+                    btn.textContent = phrase;
+                    btn.onclick = () => {
+                        const textarea = document.getElementById('content');
+                        insertTextAtCursor(textarea, phrase);
+                        textarea.focus();
+                    };
+                    quickPhrasesDiv.appendChild(btn);
+                });
+            }
+
+            // 显示常用标签（带颜色）
+            if (quickTagsDiv) {
+                CurrentAppData.quickTags.forEach(tag => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quick-option';
+                    btn.textContent = tag;
+                    btn.style.backgroundColor = tagColors[tag] || '#95a5a6';
+                    btn.style.color = 'white';
+                    btn.style.border = 'none';
+                    btn.onclick = () => {
+                        const tagsInput = document.getElementById('tags');
+                        addTagToInput(tagsInput, tag);
+                    };
+                    quickTagsDiv.appendChild(btn);
+                });
+            }
+        }
+
+        // 渲染移动端快速选择
+        function renderMobileQuickSelect() {
+            const quickPhrasesDiv = document.getElementById('mobileQuickPhrases');
+            const quickTagsDiv = document.getElementById('mobileQuickTags');
+
+            if (quickPhrasesDiv) quickPhrasesDiv.innerHTML = '';
+            if (quickTagsDiv) quickTagsDiv.innerHTML = '';
+
+            // 显示常用短语
+            if (quickPhrasesDiv) {
+                CurrentAppData.customPhrases.slice(0, 6).forEach(phrase => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quick-option';
+                    btn.textContent = phrase;
+                    btn.onclick = () => {
+                        const textarea = document.getElementById('mobileContent');
+                        insertTextAtCursor(textarea, phrase);
+                        textarea.focus();
+                    };
+                    quickPhrasesDiv.appendChild(btn);
+                });
+            }
+
+            // 显示常用标签（带颜色）
+            if (quickTagsDiv) {
+                CurrentAppData.quickTags.slice(0, 8).forEach(tag => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quick-option';
+                    btn.textContent = tag;
+                    btn.style.backgroundColor = tagColors[tag] || '#95a5a6';
+                    btn.style.color = 'white';
+                    btn.style.border = 'none';
+                    btn.onclick = () => {
+                        const tagsInput = document.getElementById('mobileTags');
+                        addTagToInput(tagsInput, tag);
+                    };
+                    quickTagsDiv.appendChild(btn);
+                });
+            }
+        }
+
+        // 在光标位置插入文本
+        function insertTextAtCursor(textarea, text) {
+            if (!textarea) return;
+            
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const currentText = textarea.value;
+            
+            let prefix = '';
+            if (start > 0 && !currentText[start - 1].match(/[\n\r]/)) {
+                prefix = '\n';
+            }
+            
+            textarea.value = currentText.substring(0, start) + prefix + text + currentText.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + prefix.length + text.length;
+        }
+
+        // 添加标签到输入框
+        function addTagToInput(input, tag) {
+            if (!input) return;
+            
+            const currentTags = input.value ? 
+                input.value.split(',').map(t => t.trim()).filter(t => t) : [];
+            
+            if (!currentTags.includes(tag)) {
+                currentTags.push(tag);
+                input.value = currentTags.join(', ');
+            }
+            
+            input.focus();
+        }
+
+        // 修复移动端输入处理器
+        function setupMobileInputHandlers() {
+            const mobileTextarea = document.getElementById('mobileContent');
+            if (mobileTextarea) {
+                // 监听粘贴事件，保留原始格式
+                mobileTextarea.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    
+                    // 获取粘贴的文本
+                    let pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                    
+                    // 保留原始格式，包括换行和空格
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    const currentValue = this.value;
+                    
+                    // 在光标位置插入粘贴的文本
+                    const newValue = currentValue.substring(0, start) + pastedText + currentValue.substring(end);
+                    this.value = newValue;
+                    
+                    // 将光标移动到粘贴文本的末尾
+                    this.selectionStart = this.selectionEnd = start + pastedText.length;
+                    
+                    // 触发input事件
+                    this.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+                
+                // 修复输入框滚动问题
+                mobileTextarea.addEventListener('touchstart', function(e) {
+                    e.stopPropagation();
+                });
+                
+                // 确保输入框获得焦点时不移动
+                mobileTextarea.addEventListener('focus', function() {
+                    setTimeout(() => {
+                        this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                });
+            }
+        }
+
+        // ==================== 云端同步功能 ====================
+
+        // 获取Cloudflare API地址
+        function getCloudflareApiUrl() {
+            const input = document.getElementById('cloudflareApiUrl');
+            return input ? input.value.trim() || DEFAULT_CLOUDFLARE_API_URL : DEFAULT_CLOUDFLARE_API_URL;
+        }
+
+        // 上传到云端
+        async function pushToCloud() {
+            if (!AppSystem.currentAppId) {
+                showNotification('请先选择一个应用');
+                return;
+            }
+            
+            const entries = CurrentAppData.entries;
+            if (entries.length === 0) {
+                showNotification('没有数据可上传');
+                return;
+            }
+
+            const apiUrl = getCloudflareApiUrl();
+            showNotification('正在上传到云端...');
+
+            try {
+                const response = await fetch(`${apiUrl}/api/entries`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entries.map(e => ({
+                        id: e.id,
+                        appId: AppSystem.currentAppId,
+                        content: e.content,
+                        category: e.category || '',
+                        tags: e.tags || [],
+                        date: e.date,
+                        dateISO: e.dateISO,
+                        timestamp: e.timestamp
+                    })))
+                });
+                
+                if (response.ok) {
+                    showNotification(`成功上传 ${entries.length} 条记录到云端`);
+                } else {
+                    const error = await response.text();
+                    throw new Error(error || '上传失败');
+                }
+            } catch (err) {
+                console.error('上传失败:', err);
+                showNotification('云端连接失败，请检查地址和网络');
+            }
+        }
+
+        // 从云端下载
+        async function pullFromCloud() {
+            if (!AppSystem.currentAppId) {
+                showNotification('请先选择一个应用');
+                return;
+            }
+
+            const apiUrl = getCloudflareApiUrl();
+            showNotification('正在从云端下载...');
+
+            try {
+                const response = await fetch(`${apiUrl}/api/entries?appId=${AppSystem.currentAppId}`);
+                if (!response.ok) throw new Error('下载失败');
+                
+                const cloudEntries = await response.json();
+                if (!Array.isArray(cloudEntries)) throw new Error('数据格式错误');
+
+                // 转换云端数据格式
+                const convertedEntries = cloudEntries.map(e => ({
+                    id: e.uuid || e.id,
+                    date: e.date,
+                    dateISO: e.date_iso || e.dateISO,
+                    category: e.category,
+                    content: e.content,
+                    tags: typeof e.tags === 'string' ? JSON.parse(e.tags) : (e.tags || []),
+                    timestamp: e.timestamp
+                }));
+
+                if (convertedEntries.length === 0) {
+                    showNotification('云端没有记录');
+                    return;
+                }
+
+                // 合并到本地（按ID去重）
+                const localIds = new Set(CurrentAppData.entries.map(e => e.id));
+                const newEntries = convertedEntries.filter(e => !localIds.has(e.id));
+                
+                if (newEntries.length > 0) {
+                    CurrentAppData.entries = [...CurrentAppData.entries, ...newEntries];
+                    CurrentAppData.entries.sort((a, b) => b.timestamp - a.timestamp);
+                    saveAppData();
+                    renderAllEntries();
+                    renderStats();
+                    showNotification(`从云端下载 ${newEntries.length} 条新记录`);
+                } else {
+                    showNotification('云端没有新记录');
+                }
+            } catch (err) {
+                console.error('下载失败:', err);
+                showNotification('云端连接失败，请检查地址和网络');
+            }
+        }
+
+        // 双向同步（合并云端和本地）
+        async function syncWithCloud() {
+            if (!AppSystem.currentAppId) {
+                showNotification('请先选择一个应用');
+                return;
+            }
+
+            const apiUrl = getCloudflareApiUrl();
+            showNotification('正在同步云端数据...');
+
+            try {
+                // 先上传本地所有数据
+                await fetch(`${apiUrl}/api/entries`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(CurrentAppData.entries.map(e => ({
+                        id: e.id,
+                        appId: AppSystem.currentAppId,
+                        content: e.content,
+                        category: e.category || '',
+                        tags: e.tags || [],
+                        date: e.date,
+                        dateISO: e.dateISO,
+                        timestamp: e.timestamp
+                    })))
+                });
+
+                // 再下载云端所有数据
+                const response = await fetch(`${apiUrl}/api/entries?appId=${AppSystem.currentAppId}`);
+                if (!response.ok) throw new Error('下载失败');
+                
+                const cloudEntries = await response.json();
+                const convertedEntries = cloudEntries.map(e => ({
+                    id: e.uuid || e.id,
+                    date: e.date,
+                    dateISO: e.date_iso || e.dateISO,
+                    category: e.category,
+                    content: e.content,
+                    tags: typeof e.tags === 'string' ? JSON.parse(e.tags) : (e.tags || []),
+                    timestamp: e.timestamp
+                }));
+
+                // 合并（按时间戳保留最新版本）
+                const mergedMap = new Map();
+                
+                // 先添加本地所有条目
+                CurrentAppData.entries.forEach(e => mergedMap.set(e.id, e));
+                
+                // 再添加云端条目（如果有冲突，保留时间戳更新的）
+                convertedEntries.forEach(e => {
+                    const existing = mergedMap.get(e.id);
+                    if (!existing || e.timestamp > existing.timestamp) {
+                        mergedMap.set(e.id, e);
+                    }
+                });
+
+                CurrentAppData.entries = Array.from(mergedMap.values());
+                CurrentAppData.entries.sort((a, b) => b.timestamp - a.timestamp);
+                
+                saveAppData();
+                renderAllEntries();
+                renderStats();
+                showNotification(`同步完成，共 ${CurrentAppData.entries.length} 条记录`);
+                
+            } catch (err) {
+                console.error('同步失败:', err);
+                showNotification('云端连接失败，请检查地址和网络');
+            }
+        }
+
+        // ==================== 保存记录（修复空格问题）====================
+
+        // 保存记录（电脑端）- 修复空格问题
+        function saveEntry() {
+            const content = document.getElementById('content').value;
+            // 只检查是否为空（去除了首尾空格，但保存时保留原始内容）
+            if (!content.trim()) {
+                showNotification('请输入内容');
+                return;
+            }
+
+            const tagsInput = document.getElementById('tags').value;
+            const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+            
+            const activeCategoryBtn = document.querySelector('.category-btn.active');
+            const category = activeCategoryBtn ? activeCategoryBtn.dataset.category : CurrentAppData.categories[0];
+
+            const entry = {
+                id: Date.now(),
+                date: new Date().toLocaleString('zh-CN'),
+                dateISO: new Date().toISOString(),
+                category,
+                content: content, // 保存原始内容，保留所有空格和格式
+                tags,
+                timestamp: new Date().getTime()
+            };
+
+            // 限制内容长度
+            if (content.length > 10000) {
+                if (!confirm('内容较长（超过10000字符），确定要保存吗？')) {
+                    return;
+                }
+            }
+
+            CurrentAppData.entries.unshift(entry);
+            
+            // 保存到当前应用
+            const success = saveAppData();
+            
+            if (success) {
+                renderStats();
+                renderAllEntries();
+                clearForm();
+                updateRecordCount();
+                checkStorageStatus();
+                showNotification('记录保存成功！');
+            } else {
+                showNotification('保存失败，存储空间可能不足');
+            }
+        }
+
+        // 保存记录（移动端）- 修复空格问题
+        function saveMobileEntry() {
+            const content = document.getElementById('mobileContent').value;
+            // 只检查是否为空（去除了首尾空格，但保存时保留原始内容）
+            if (!content.trim()) {
+                showNotification('请输入内容');
+                return;
+            }
+
+            const tagsInput = document.getElementById('mobileTags').value;
+            const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+            
+            const activeCategoryBtn = document.querySelector('#mobileCategoryContainer .category-btn.active');
+            const category = activeCategoryBtn ? activeCategoryBtn.dataset.category : CurrentAppData.categories[0];
+
+            const entry = {
+                id: Date.now(),
+                date: new Date().toLocaleString('zh-CN'),
+                dateISO: new Date().toISOString(),
+                category,
+                content: content, // 保存原始内容，保留所有空格和格式
+                tags,
+                timestamp: new Date().getTime()
+            };
+
+            CurrentAppData.entries.unshift(entry);
+            
+            const success = saveAppData();
+            
+            if (success) {
+                renderStats();
+                renderAllEntries();
+                clearMobileForm();
+                showMobilePanel('none');
+                updateRecordCount();
+                checkStorageStatus();
+                showNotification('记录保存成功！');
+            } else {
+                showNotification('保存失败');
+            }
+        }
+
+        // 清空表单
+        function clearForm() {
+            document.getElementById('content').value = '';
+            document.getElementById('tags').value = '';
+        }
+
+        function clearMobileForm() {
+            document.getElementById('mobileContent').value = '';
+            document.getElementById('mobileTags').value = '';
+            
+            // 重置分类按钮到第一个
+            const categoryBtns = document.querySelectorAll('#mobileCategoryContainer .category-btn');
+            categoryBtns.forEach((btn, index) => {
+                if (index === 0) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // ==================== 原有其他功能保持不变 ====================
+        
+        // 显示所有记录
+        function renderAllEntries() {
+            const displayArea = document.getElementById('displayArea');
+            const pagination = document.getElementById('pagination');
+            
+            if (!displayArea) return;
+            
+            if (CurrentAppData.entries.length === 0) {
+                displayArea.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: #777;">
+                        <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;">📭</div>
+                        <h3>暂无记录</h3>
+                        <p>开始写下你的第一条记录吧！</p>
+                    </div>
+                `;
+                if (pagination) pagination.style.display = 'none';
+                return;
+            }
+            
+            // 计算分页
+            const totalEntries = CurrentAppData.entries.length;
+            CurrentAppData.totalPages = Math.ceil(totalEntries / CurrentAppData.pageSize);
+            
+            if (CurrentAppData.currentPage > CurrentAppData.totalPages) {
+                CurrentAppData.currentPage = 1;
+            }
+            
+            const startIndex = (CurrentAppData.currentPage - 1) * CurrentAppData.pageSize;
+            const endIndex = Math.min(startIndex + CurrentAppData.pageSize, totalEntries);
+            const currentEntries = CurrentAppData.entries.slice(startIndex, endIndex);
+            
+            // 按日期分组
+            const groupedEntries = {};
+            currentEntries.forEach(entry => {
+                const dateKey = new Date(entry.timestamp).toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                if (!groupedEntries[dateKey]) {
+                    groupedEntries[dateKey] = [];
+                }
+                groupedEntries[dateKey].push(entry);
+            });
+            
+            // 按日期排序
+            const sortedDates = Object.keys(groupedEntries).sort((a, b) => {
+                return new Date(b) - new Date(a);
+            });
+            
+            let html = '';
+            
+            sortedDates.forEach(date => {
+                html += `<h3>📅 ${date}</h3>`;
+                
+                groupedEntries[date].forEach(entry => {
+                    const timeStr = new Date(entry.timestamp).toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    // 生成标签HTML
+                    let tagsHtml = '';
+                    if (entry.tags && entry.tags.length > 0) {
+                        tagsHtml = `<div class="entry-tags">`;
+                        entry.tags.forEach(tag => {
+                            const colorClass = tagColors[tag] ? `tag-${tag}` : 'tag-default';
+                            tagsHtml += `<span class="tag ${colorClass}">${tag}</span>`;
+                        });
+                        tagsHtml += `</div>`;
+                    }
+                    
+                    html += `
+                        <div class="entry-item">
+                            <div class="entry-header">
+                                <span class="entry-date">${timeStr}</span>
+                                <span class="entry-category">${entry.category}</span>
+                            </div>
+                            <div class="entry-content">${entry.content.replace(/\n/g, '<br>')}</div>
+                            ${tagsHtml}
+                        </div>
+                    `;
+                });
+            });
+            
+            displayArea.innerHTML = html;
+            
+            // 更新分页控件
+            updatePagination();
+        }
+
+        // 更新分页控件
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            
+            if (!pagination) return;
+            
+            if (CurrentAppData.totalPages > 1) {
+                pagination.style.display = 'flex';
+                if (pageInfo) pageInfo.textContent = `第${CurrentAppData.currentPage}页/共${CurrentAppData.totalPages}页`;
+                if (prevBtn) prevBtn.disabled = CurrentAppData.currentPage === 1;
+                if (nextBtn) nextBtn.disabled = CurrentAppData.currentPage === CurrentAppData.totalPages;
+            } else {
+                pagination.style.display = 'none';
+            }
+        }
+
+        // 改变页码
+        function changePage(delta) {
+            const newPage = CurrentAppData.currentPage + delta;
+            if (newPage >= 1 && newPage <= CurrentAppData.totalPages) {
+                CurrentAppData.currentPage = newPage;
+                renderAllEntries();
+            }
+        }
+
+        // 改变每页显示数量
+        function changePageSize() {
+            const pageSize = document.getElementById('pageSize');
+            if (!pageSize) return;
+            
+            const newSize = parseInt(pageSize.value);
+            if (newSize !== CurrentAppData.pageSize) {
+                CurrentAppData.pageSize = newSize;
+                CurrentAppData.currentPage = 1;
+                renderAllEntries();
+            }
+        }
+
+        // 防抖筛选
+        function debouncedFilter() {
+            clearTimeout(CurrentAppData.debounceTimer);
+            CurrentAppData.debounceTimer = setTimeout(() => {
+                filterEntries();
+            }, 300);
+        }
+
+        // 筛选记录
+        function filterEntries() {
+            const searchInput = document.getElementById('searchInput');
+            const filterCategory = document.getElementById('filterCategory');
+            const dateRange = document.getElementById('dateRange');
+            
+            if (!searchInput || !filterCategory || !dateRange) return;
+            
+            const searchText = searchInput.value.toLowerCase();
+            const category = filterCategory.value;
+            const range = dateRange.value;
+            
+            let filteredEntries = CurrentAppData.entries;
+            
+            // 按分类筛选
+            if (category !== 'all') {
+                filteredEntries = filteredEntries.filter(entry => entry.category === category);
+            }
+            
+            // 按日期范围筛选
+            if (range !== 'all') {
+                const now = new Date();
+                let startDate;
+                
+                switch(range) {
+                    case 'today':
+                        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        break;
+                    case 'week':
+                        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+                        break;
+                    case 'month':
+                        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                        break;
+                    case 'year':
+                        startDate = new Date(now.getFullYear(), 0, 1);
+                        break;
+                }
+                
+                if (startDate) {
+                    filteredEntries = filteredEntries.filter(entry => 
+                        new Date(entry.timestamp) >= startDate
+                    );
+                }
+            }
+            
+            // 按搜索词筛选
+            if (searchText) {
+                filteredEntries = filteredEntries.filter(entry => 
+                    entry.content.toLowerCase().includes(searchText) ||
+                    (entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(searchText)))
+                );
+            }
+            
+            // 显示筛选结果
+            displayFilteredEntries(filteredEntries);
+        }
+
+        // 显示筛选后的记录
+        function displayFilteredEntries(entries) {
+            const displayArea = document.getElementById('displayArea');
+            const pagination = document.getElementById('pagination');
+            
+            if (!displayArea) return;
+            
+            if (entries.length === 0) {
+                displayArea.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: #777;">
+                        <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;">🔍</div>
+                        <h3>没有找到匹配的记录</h3>
+                        <p>尝试调整筛选条件</p>
+                    </div>
+                `;
+                if (pagination) pagination.style.display = 'none';
+                return;
+            }
+            
+            let html = '';
+            
+            // 按日期分组
+            const groupedEntries = {};
+            entries.forEach(entry => {
+                const dateKey = new Date(entry.timestamp).toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                if (!groupedEntries[dateKey]) {
+                    groupedEntries[dateKey] = [];
+                }
+                groupedEntries[dateKey].push(entry);
+            });
+            
+            // 按日期排序
+            const sortedDates = Object.keys(groupedEntries).sort((a, b) => {
+                return new Date(b) - new Date(a);
+            });
+            
+            sortedDates.forEach(date => {
+                html += `<h3>📅 ${date}</h3>`;
+                
+                groupedEntries[date].forEach(entry => {
+                    const timeStr = new Date(entry.timestamp).toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    // 生成标签HTML
+                    let tagsHtml = '';
+                    if (entry.tags && entry.tags.length > 0) {
+                        tagsHtml = `<div class="entry-tags">`;
+                        entry.tags.forEach(tag => {
+                            const colorClass = tagColors[tag] ? `tag-${tag}` : 'tag-default';
+                            tagsHtml += `<span class="tag ${colorClass}">${tag}</span>`;
+                        });
+                        tagsHtml += `</div>`;
+                    }
+                    
+                    html += `
+                        <div class="entry-item">
+                            <div class="entry-header">
+                                <span class="entry-date">${timeStr}</span>
+                                <span class="entry-category">${entry.category}</span>
+                            </div>
+                            <div class="entry-content">${entry.content.replace(/\n/g, '<br>')}</div>
+                            ${tagsHtml}
+                        </div>
+                    `;
+                });
+            });
+            
+            displayArea.innerHTML = html;
+            if (pagination) pagination.style.display = 'none';
+        }
+
+        // 渲染统计
+        function renderStats() {
+            const today = new Date().toDateString();
+            const todayEntries = CurrentAppData.entries.filter(entry => 
+                new Date(entry.timestamp).toDateString() === today
+            );
+            
+            const stats = {
+                '今日': todayEntries.length,
+                '总计': CurrentAppData.entries.length,
+                '分类': new Set(CurrentAppData.entries.map(e => e.category)).size,
+                '标签': new Set(CurrentAppData.entries.flatMap(e => e.tags || [])).size
+            };
+            
+            // 更新电脑端统计
+            const statsDiv = document.getElementById('stats');
+            if (statsDiv) {
+                statsDiv.innerHTML = Object.entries(stats).map(([label, value]) => `
+                    <div class="stat-item">
+                        <div class="stat-value">${value}</div>
+                        <div class="stat-label">${label}</div>
+                    </div>
+                `).join('');
+            }
+            
+            // 更新移动端统计
+            const mobileStatsDiv = document.getElementById('mobileStats');
+            if (mobileStatsDiv) {
+                mobileStatsDiv.innerHTML = Object.entries(stats).map(([label, value]) => `
+                    <div class="stat-item">
+                        <div class="stat-value">${value}</div>
+                        <div class="stat-label">${label}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 更新记录计数
+        function updateRecordCount() {
+            const countElement = document.getElementById('recordCount');
+            if (countElement) {
+                countElement.textContent = `(${CurrentAppData.entries.length}条)`;
+            }
+        }
+
+        // 设置事件监听
+        function setupEventListeners() {
+            // 电脑端类型按钮
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.category-btn').forEach(b => 
+                        b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // 键盘快捷键
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    saveEntry();
+                }
+                if (e.key === 'Escape') {
+                    clearForm();
+                }
+            });
+        }
+
+        // 移动端面板控制
+        function showMobilePanel(panel) {
+            // 更新标签状态
+            document.querySelectorAll('.mobile-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            if (panel === 'none') {
+                document.querySelector('.mobile-tab:nth-child(1)').classList.add('active');
+            } else if (panel === 'add') {
+                document.querySelector('.mobile-tab:nth-child(2)').classList.add('active');
+            } else if (panel === 'stats') {
+                document.querySelector('.mobile-tab:nth-child(3)').classList.add('active');
+            }
+            
+            // 隐藏所有面板
+            document.querySelectorAll('.mobile-panel').forEach(p => {
+                p.classList.remove('active');
+            });
+            
+            // 显示选中的面板
+            if (panel !== 'none') {
+                const activePanel = document.getElementById(`mobile${panel.charAt(0).toUpperCase() + panel.slice(1)}Panel`);
+                if (activePanel) {
+                    activePanel.classList.add('active');
+                    
+                    // 重置滚动位置到顶部
+                    activePanel.scrollTop = 0;
+                    
+                    // 如果显示的是新增面板，聚焦输入框（延迟一点确保面板显示完成）
+                    if (panel === 'add') {
+                        setTimeout(() => {
+                            const textarea = document.getElementById('mobileContent');
+                            if (textarea) {
+                                textarea.focus();
+                            }
+                        }, 300);
+                    }
+                }
+            }
+        }
+
+        function closeMobilePanel(panel) {
+            const mobilePanel = document.getElementById(`mobile${panel.charAt(0).toUpperCase() + panel.slice(1)}Panel`);
+            if (mobilePanel) {
+                mobilePanel.classList.remove('active');
+            }
+            document.querySelector('.mobile-tab:nth-child(1)').classList.add('active');
+        }
+
+        // 数据压缩功能
+        function compressData(data) {
+            try {
+                // 移除不必要的空格和换行
+                const compressed = data.map(entry => ({
+                    i: entry.id,
+                    d: entry.date,
+                    di: entry.dateISO,
+                    c: entry.category,
+                    t: entry.tags,
+                    ts: entry.timestamp,
+                    ct: entry.content.replace(/\s+/g, ' ').trim()
+                }));
+                return JSON.stringify(compressed);
+            } catch (error) {
+                return JSON.stringify(data);
+            }
+        }
+
+        function decompressData(compressed) {
+            try {
+                const parsed = JSON.parse(compressed);
+                if (Array.isArray(parsed)) {
+                    return parsed.map(item => ({
+                        id: item.i || item.id,
+                        date: item.d || item.date,
+                        dateISO: item.di || item.dateISO,
+                        category: item.c || item.category,
+                        tags: item.t || item.tags,
+                        timestamp: item.ts || item.timestamp,
+                        content: item.ct || item.content
+                    }));
+                }
+                return [];
+            } catch (error) {
+                try {
+                    return JSON.parse(compressed);
+                } catch (e) {
+                    return [];
+                }
+            }
+        }
+
+        // 存储管理功能
+        function checkStorageStatus() {
+            const totalEntries = CurrentAppData.entries.length;
+            const warningElement = document.getElementById('performanceWarning');
+            
+            if (!warningElement) return;
+            
+            if (totalEntries > 500) {
+                warningElement.classList.remove('hidden');
+            } else {
+                warningElement.classList.add('hidden');
+            }
+        }
+
+        function estimateStorageSize() {
+            const entriesJson = JSON.stringify(CurrentAppData.entries);
+            const sizeInBytes = new Blob([entriesJson]).size;
+            
+            if (sizeInBytes < 1024) {
+                return sizeInBytes + ' B';
+            } else if (sizeInBytes < 1024 * 1024) {
+                return (sizeInBytes / 1024).toFixed(2) + ' KB';
+            } else {
+                return (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+            }
+        }
+
+        function openStorageModal() {
+            const statsElement = document.getElementById('storageStats');
+            if (statsElement) {
+                const totalEntries = CurrentAppData.entries.length;
+                const compressedSize = estimateStorageSize();
+                statsElement.innerHTML = `
+                    总记录数: ${totalEntries} 条<br>
+                    估算存储: ${compressedSize}<br>
+                    ${totalEntries > 1000 ? '⚠️ 建议开启压缩或分批导出' : ''}
+                `;
+            }
+            
+            const compressContent = document.getElementById('compressContent');
+            if (compressContent) {
+                compressContent.checked = CurrentAppData.compressContent;
+            }
+            
+            document.getElementById('storageModal').style.display = 'flex';
+        }
+
+        function optimizeStorage() {
+            if (CurrentAppData.entries.length === 0) {
+                showNotification('没有数据可优化');
+                return;
+            }
+            
+            const compressContent = document.getElementById('compressContent');
+            if (compressContent) {
+                CurrentAppData.compressContent = compressContent.checked;
+            }
+            
+            const optimizeDates = document.getElementById('optimizeDates');
+            if (optimizeDates && optimizeDates.checked) {
+                CurrentAppData.entries.forEach(entry => {
+                    if (!entry.dateISO && entry.timestamp) {
+                        entry.dateISO = new Date(entry.timestamp).toISOString();
+                    }
+                });
+            }
+            
+            const success = saveAppData();
+            
+            if (success) {
+                const compressedSize = estimateStorageSize();
+                showNotification(`优化完成！当前存储大小：${compressedSize}`);
+                checkStorageStatus();
+                closeModal('storageModal');
+            } else {
+                showNotification('优化失败');
+            }
+        }
+
+        function clearOldData() {
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            
+            const oldEntries = CurrentAppData.entries.filter(entry => 
+                new Date(entry.timestamp) < sixMonthsAgo
+            );
+            
+            if (oldEntries.length === 0) {
+                showNotification('没有找到6个月前的旧数据');
+                return;
+            }
+            
+            if (confirm(`找到${oldEntries.length}条6个月前的记录，确定要删除吗？`)) {
+                CurrentAppData.entries = CurrentAppData.entries.filter(entry => 
+                    new Date(entry.timestamp) >= sixMonthsAgo
+                );
+                
+                const success = saveAppData();
+                if (success) {
+                    renderAllEntries();
+                    renderStats();
+                    updateRecordCount();
+                    showNotification(`已删除${oldEntries.length}条旧记录`);
+                    checkStorageStatus();
+                    closeModal('storageModal');
+                }
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('确定要清空当前应用的所有数据吗？此操作不可恢复！')) {
+                CurrentAppData.entries = [];
+                const success = saveAppData();
+                if (success) {
+                    renderAllEntries();
+                    renderStats();
+                    updateRecordCount();
+                    checkStorageStatus();
+                    showNotification('数据已清空！');
+                }
+            }
+        }
+
+        function backupData() {
+            const backup = {
+                entries: CurrentAppData.entries,
+                customPhrases: CurrentAppData.customPhrases,
+                categories: CurrentAppData.categories,
+                quickTags: CurrentAppData.quickTags,
+                backupDate: new Date().toLocaleString(),
+                appId: AppSystem.currentAppId,
+                appName: AppSystem.currentAppConfig.name
+            };
+            
+            localStorage.setItem('backup_' + AppSystem.currentAppId, JSON.stringify(backup));
+            showNotification('数据已备份到本地存储');
+        }
+
+        // 同步功能
+        function openSyncModal() {
+            generateQRCode();
+            document.getElementById('syncModal').style.display = 'flex';
+        }
+
+        function generateQRCode() {
+            const dataStr = JSON.stringify({
+                entries: CurrentAppData.entries,
+                customPhrases: CurrentAppData.customPhrases,
+                categories: CurrentAppData.categories,
+                quickTags: CurrentAppData.quickTags,
+                appId: AppSystem.currentAppId,
+                appName: AppSystem.currentAppConfig.name,
+                exportDate: new Date().toLocaleString(),
+                count: CurrentAppData.entries.length
+            }, null, 2);
+            
+            const canvas = document.getElementById('qrCanvas');
+            if (!canvas) return;
+            
+            const container = canvas.parentElement;
+            const size = Math.min(300, container.clientWidth - 40);
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            if (typeof QRCode !== 'undefined') {
+                QRCode.toCanvas(canvas, dataStr, {
+                    width: size,
+                    margin: 1,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                }, function(error) {
+                    if (error) {
+                        console.error('二维码生成失败:', error);
+                        canvas.parentElement.innerHTML = `
+                            <div style="color: #666; padding: 20px;">
+                                <p>二维码生成失败，请直接复制数据：</p>
+                                <textarea style="width: 100%; height: 100px; margin-top: 10px; padding: 10px; font-family: monospace; font-size: 12px;">${dataStr}</textarea>
+                            </div>
+                        `;
+                    }
+                });
+            } else {
+                canvas.parentElement.innerHTML = `
+                    <div style="color: #666; padding: 20px;">
+                        <p>QRCode库加载中，请直接复制数据：</p>
+                        <textarea style="width: 100%; height: 100px; margin-top: 10px; padding: 10px; font-family: monospace; font-size: 12px;">${dataStr}</textarea>
+                    </div>
+                `;
+            }
+        }
+
+        function importData() {
+            const importText = document.getElementById('importData').value.trim();
+            
+            if (!importText) {
+                showNotification('请输入要导入的数据');
+                return;
+            }
+            
+            try {
+                const importedData = JSON.parse(importText);
+                
+                if (importedData.entries && Array.isArray(importedData.entries)) {
+                    const existingIds = new Set(CurrentAppData.entries.map(e => e.id));
+                    let addedCount = 0;
+                    
+                    importedData.entries.forEach(entry => {
+                        if (!existingIds.has(entry.id)) {
+                            CurrentAppData.entries.push(entry);
+                            existingIds.add(entry.id);
+                            addedCount++;
+                        }
+                    });
+                    
+                    CurrentAppData.entries.sort((a, b) => b.timestamp - a.timestamp);
+                    
+                    saveAppData();
+                    
+                    renderAllEntries();
+                    renderStats();
+                    updateRecordCount();
+                    checkStorageStatus();
+                    
+                    showNotification(`成功导入 ${addedCount} 条记录`);
+                    closeModal('syncModal');
+                } else {
+                    throw new Error('数据格式不正确');
+                }
+                
+            } catch (error) {
+                showNotification('导入失败：数据格式错误');
+            }
+        }
+
+        function exportJSON() {
+            const data = {
+                entries: CurrentAppData.entries,
+                customPhrases: CurrentAppData.customPhrases,
+                categories: CurrentAppData.categories,
+                quickTags: CurrentAppData.quickTags,
+                appId: AppSystem.currentAppId,
+                appName: AppSystem.currentAppConfig.name,
+                exportDate: new Date().toLocaleString(),
+                count: CurrentAppData.entries.length
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            
+            if (typeof saveAs !== 'undefined') {
+                saveAs(blob, `${AppSystem.currentAppConfig.name}_${new Date().toISOString().split('T')[0]}.json`);
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${AppSystem.currentAppConfig.name}_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            showNotification('JSON数据导出成功！');
+            closeModal('syncModal');
+        }
+
+        // 导出功能
+        function openExportModal() {
+            document.getElementById('exportModal').style.display = 'flex';
+        }
+
+        function getExportEntries() {
+            const range = document.getElementById('exportRange').value;
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const category = document.getElementById('filterCategory').value;
+            
+            let entries = CurrentAppData.entries;
+            
+            if (category !== 'all') {
+                entries = entries.filter(entry => entry.category === category);
+            }
+            
+            if (searchText && range === 'search') {
+                entries = entries.filter(entry => 
+                    entry.content.toLowerCase().includes(searchText) ||
+                    (entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(searchText)))
+                );
+            }
+            
+            if (range !== 'all' && range !== 'search') {
+                const now = new Date();
+                let startDate;
+                
+                switch(range) {
+                    case 'today':
+                        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        break;
+                    case 'week':
+                        const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + 1);
+                        startDate = weekStart;
+                        break;
+                    case 'month':
+                        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                        break;
+                }
+                
+                if (startDate) {
+                    entries = entries.filter(entry => 
+                        new Date(entry.timestamp) >= startDate
+                    );
+                }
+            }
+            
+            return entries;
+        }
+
+        function exportToPDF() {
+            const entries = getExportEntries();
+            
+            if (entries.length === 0) {
+                showNotification('没有数据可导出');
+                return;
+            }
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                doc.setFont("helvetica");
+                
+                const title = `${AppSystem.currentAppConfig.name} - ${new Date().toLocaleDateString('zh-CN')}`;
+                doc.setFontSize(16);
+                doc.setTextColor(52, 152, 219);
+                doc.text(title, 105, 20, { align: 'center' });
+                
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`共 ${entries.length} 条记录 | 生成时间：${new Date().toLocaleString('zh-CN')}`, 105, 28, { align: 'center' });
+                
+                let yPos = 40;
+                
+                const groupedEntries = {};
+                entries.forEach(entry => {
+                    const dateKey = new Date(entry.timestamp).toLocaleDateString('zh-CN');
+                    if (!groupedEntries[dateKey]) {
+                        groupedEntries[dateKey] = [];
+                    }
+                    groupedEntries[dateKey].push(entry);
+                });
+                
+                const sortedDates = Object.keys(groupedEntries).sort((a, b) => new Date(b) - new Date(a));
+                
+                sortedDates.forEach(date => {
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFontSize(12);
+                    doc.setTextColor(41, 128, 185);
+                    doc.text(`📅 ${date}`, 14, yPos);
+                    yPos += 8;
+                    
+                    groupedEntries[date].forEach(entry => {
+                        if (yPos > 270) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        
+                        const timeStr = new Date(entry.timestamp).toLocaleTimeString('zh-CN', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        
+                        doc.setFontSize(9);
+                        doc.setTextColor(100, 100, 100);
+                        doc.text(`${timeStr} [${entry.category}]`, 14, yPos);
+                        yPos += 6;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(0, 0, 0);
+                        const lines = doc.splitTextToSize(entry.content, 180);
+                        lines.forEach(line => {
+                            if (yPos > 270) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+                            doc.text(line, 20, yPos);
+                            yPos += 6;
+                        });
+                        
+                        if (entry.tags && entry.tags.length > 0) {
+                            if (yPos > 270) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+                            
+                            let tagText = "🏷️ ";
+                            entry.tags.forEach((tag, index) => {
+                                tagText += tag;
+                                if (index < entry.tags.length - 1) tagText += " • ";
+                            });
+                            
+                            doc.setFontSize(8);
+                            doc.setTextColor(100, 100, 100);
+                            doc.text(tagText, 20, yPos);
+                            yPos += 6;
+                        }
+                        
+                        yPos += 4;
+                    });
+                    
+                    yPos += 8;
+                });
+                
+                doc.save(`${AppSystem.currentAppConfig.name}_${new Date().toISOString().split('T')[0]}.pdf`);
+                showNotification('PDF导出成功！');
+                closeModal('exportModal');
+                
+            } catch (error) {
+                console.error('PDF导出失败:', error);
+                showNotification('PDF导出失败，请重试');
+            }
+        }
+
+        function exportToWord() {
+            const entries = getExportEntries();
+            
+            if (entries.length === 0) {
+                showNotification('没有数据可导出');
+                return;
+            }
+            
+            try {
+                const doc = new docx.Document({
+                    sections: [{
+                        properties: {},
+                        children: []
+                    }]
+                });
+                
+                const title = new docx.Paragraph({
+                    text: `${AppSystem.currentAppConfig.name} - ${new Date().toLocaleDateString('zh-CN')}`,
+                    heading: docx.HeadingLevel.TITLE,
+                    alignment: docx.AlignmentType.CENTER,
+                    spacing: { after: 200 }
+                });
+                
+                const meta = new docx.Paragraph({
+                    text: `共 ${entries.length} 条记录 | 生成时间：${new Date().toLocaleString('zh-CN')}`,
+                    alignment: docx.AlignmentType.CENTER,
+                    spacing: { after: 400 }
+                });
+                
+                doc.addSection({
+                    children: [title, meta]
+                });
+                
+                const groupedEntries = {};
+                entries.forEach(entry => {
+                    const dateKey = new Date(entry.timestamp).toLocaleDateString('zh-CN');
+                    if (!groupedEntries[dateKey]) {
+                        groupedEntries[dateKey] = [];
+                    }
+                    groupedEntries[dateKey].push(entry);
+                });
+                
+                const sortedDates = Object.keys(groupedEntries).sort((a, b) => new Date(b) - new Date(a));
+                
+                sortedDates.forEach(date => {
+                    const dateTitle = new docx.Paragraph({
+                        text: `📅 ${date}`,
+                        heading: docx.HeadingLevel.HEADING_2,
+                        spacing: { before: 400, after: 200 }
+                    });
+                    
+                    doc.addSection({
+                        children: [dateTitle]
+                    });
+                    
+                    groupedEntries[date].forEach(entry => {
+                        const timeStr = new Date(entry.timestamp).toLocaleTimeString('zh-CN', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        
+                        const header = new docx.Paragraph({
+                            children: [
+                                new docx.TextRun({
+                                    text: `${timeStr} `,
+                                    bold: true,
+                                    size: 20
+                                }),
+                                new docx.TextRun({
+                                    text: `[${entry.category}]`,
+                                    color: "2E86C1",
+                                    bold: true,
+                                    size: 20
+                                })
+                            ],
+                            spacing: { after: 100 }
+                        });
+                        
+                        const content = new docx.Paragraph({
+                            text: entry.content,
+                            spacing: { after: 100 }
+                        });
+                        
+                        let tagParagraph;
+                        if (entry.tags && entry.tags.length > 0) {
+                            const tagRuns = [new docx.TextRun({
+                                text: "🏷️ ",
+                                size: 18
+                            })];
+                            
+                            entry.tags.forEach((tag, index) => {
+                                tagRuns.push(new docx.TextRun({
+                                    text: tag,
+                                    color: tagColors[tag] ? tagColors[tag].substring(1) : "7F8C8D",
+                                    bold: true,
+                                    size: 18
+                                }));
+                                if (index < entry.tags.length - 1) {
+                                    tagRuns.push(new docx.TextRun({
+                                        text: " • ",
+                                        size: 18
+                                    }));
+                                }
+                            });
+                            
+                            tagParagraph = new docx.Paragraph({
+                                children: tagRuns,
+                                spacing: { after: 200 }
+                            });
+                        }
+                        
+                        const children = [header, content];
+                        if (tagParagraph) children.push(tagParagraph);
+                        
+                        doc.addSection({
+                            children: children
+                        });
+                    });
+                });
+                
+                docx.Packer.toBlob(doc).then(blob => {
+                    if (typeof saveAs !== 'undefined') {
+                        saveAs(blob, `${AppSystem.currentAppConfig.name}_${new Date().toISOString().split('T')[0]}.docx`);
+                    } else {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${AppSystem.currentAppConfig.name}_${new Date().toISOString().split('T')[0]}.docx`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+                    showNotification('Word文档导出成功！');
+                    closeModal('exportModal');
+                });
+                
+            } catch (error) {
+                console.error('Word导出失败:', error);
+                showNotification('Word导出失败，请重试');
+            }
+        }
+
+        function exportToText() {
+            const entries = getExportEntries();
+            
+            if (entries.length === 0) {
+                showNotification('没有数据可导出');
+                return;
+            }
+            
+            let textContent = `${AppSystem.currentAppConfig.name}\n`;
+            textContent += `生成时间：${new Date().toLocaleString('zh-CN')}\n`;
+            textContent += `共 ${entries.length} 条记录\n`;
+            textContent += '='.repeat(50) + '\n\n';
+            
+            const groupedEntries = {};
+            entries.forEach(entry => {
+                const dateKey = new Date(entry.timestamp).toLocaleDateString('zh-CN');
+                if (!groupedEntries[dateKey]) {
+                    groupedEntries[dateKey] = [];
+                }
+                groupedEntries[dateKey].push(entry);
+            });
+            
+            const sortedDates = Object.keys(groupedEntries).sort((a, b) => new Date(b) - new Date(a));
+            
+            sortedDates.forEach(date => {
+                textContent += `📅 ${date}\n`;
+                textContent += '-'.repeat(30) + '\n';
+                
+                groupedEntries[date].forEach(entry => {
+                    const timeStr = new Date(entry.timestamp).toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    textContent += `${timeStr} [${entry.category}]\n`;
+                    textContent += entry.content + '\n';
+                    
+                    if (entry.tags && entry.tags.length > 0) {
+                        textContent += '🏷️ ' + entry.tags.join(' • ') + '\n';
+                    }
+                    
+                    textContent += '\n';
+                });
+                
+                textContent += '\n';
+            });
+            
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            
+            if (typeof saveAs !== 'undefined') {
+                saveAs(blob, `${AppSystem.currentAppConfig.name}_${new Date().toISOString().split('T')[0]}.txt`);
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${AppSystem.currentAppConfig.name}_${new Date().toISOString().split('T')[0]}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            showNotification('纯文本导出成功！');
+            closeModal('exportModal');
+        }
+
+        // 常用短语管理
+        function managePhrases() {
+            const phraseList = document.getElementById('phraseList');
+            if (!phraseList) return;
+            
+            phraseList.innerHTML = '';
+            
+            CurrentAppData.customPhrases.forEach((phrase, index) => {
+                const phraseItem = document.createElement('div');
+                phraseItem.className = 'phrase-item';
+                phraseItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px;';
+                phraseItem.innerHTML = `
+                    <span>${phrase}</span>
+                    <button onclick="removePhrase(${index})" style="padding: 2px 8px; font-size: 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">删除</button>
+                `;
+                phraseList.appendChild(phraseItem);
+            });
+            
+            document.getElementById('phraseModal').style.display = 'flex';
+        }
+
+        function addCustomPhrase() {
+            const newPhraseInput = document.getElementById('newPhrase');
+            if (!newPhraseInput) return;
+            
+            const phrase = newPhraseInput.value.trim();
+            
+            if (!phrase) {
+                showNotification('请输入短语内容');
+                return;
+            }
+            
+            if (!CurrentAppData.customPhrases.includes(phrase)) {
+                CurrentAppData.customPhrases.push(phrase);
+                saveAppData();
+                renderQuickSelect();
+                renderMobileQuickSelect();
+                managePhrases();
+                newPhraseInput.value = '';
+                showNotification('短语添加成功');
+            } else {
+                showNotification('该短语已存在');
+            }
+        }
+
+        function removePhrase(index) {
+            CurrentAppData.customPhrases.splice(index, 1);
+            saveAppData();
+            renderQuickSelect();
+            renderMobileQuickSelect();
+            managePhrases();
+            showNotification('短语已删除');
+        }
+
+        // 工具函数
+        function showNotification(message) {
+            const existingNotification = document.querySelector('.notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 2000);
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', initAppSystem);
+    </script>
+
+    <!-- 引入外部库 -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@7.8.0/build/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+</body>
+</html>
